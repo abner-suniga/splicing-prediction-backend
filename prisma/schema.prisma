@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id
+  email String @unique
+
+  FastaFile FastaFile[]
+
+  @@map("users")
+}
+
+model FastaFile {
+  id      String @id
+  fileUrl String @map("file_url")
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @map("user_id")
+
+  Sequence Sequence[]
+  Job      Job[]
+
+  @@map("fasta_files")
+}
+
+model Job {
+  id String @id
+
+  fastaFile   FastaFile     @relation(fields: [fastaFileId], references: [id])
+  fastaFileId String        @map("fasta_file_id")
+  JobSequence JobSequence[]
+}
+
+model Sequence {
+  id       String @id
+  sequence String
+
+  fastaFile   FastaFile @relation(fields: [fastaFileId], references: [id])
+  fastaFileId String    @map("fasta_file_id")
+
+  JobSequence JobSequence[]
+
+  @@map("sequences")
+}
+
+model JobSequence {
+  id     String            @id
+  status JobSequenceStatus
+  result String?
+
+  sequence   Sequence @relation(fields: [sequenceId], references: [id])
+  sequenceId String   @map("sequence_id")
+
+  job   Job    @relation(fields: [jobId], references: [id])
+  jobId String @map("job_id")
+
+  @@map("jobs_sequences")
+}
+
+enum JobSequenceStatus {
+  PROCESSING
+  SUCCESS
+  FAIL
+}

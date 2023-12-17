@@ -17,23 +17,26 @@ def build_seq_vec(seq, window):
         input_index += 1
     return input_vec
 
+
 def AS_DSSP(input_seq):
     input_vec = build_seq_vec(input_seq, 140) 
     model = model_from_json(open(os.path.join(os.path.dirname(__file__), 'AS_model.json')).read())
     model.load_weights(os.path.join(os.path.dirname(__file__), 'AS_model.hdf5'))
     predict = model.predict(input_vec, batch_size=1, verbose=0)
-    return predict
+    return predict[:, 0]
+
 
 def DS_DSSP(input_seq):
     input_vec = build_seq_vec(input_seq, 140) 
     model = model_from_json(open(os.path.join(os.path.dirname(__file__), 'DS_model.json')).read())
     model.load_weights(os.path.join(os.path.dirname(__file__), 'DS_model.hdf5'))
     predict = model.predict(input_vec, batch_size=1, verbose=0)
-    return predict
+    return predict[:, 0]
 
-if sys.argv[1] == 'as':
-    np.savetxt(sys.stdout, AS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
-if sys.argv[1] == 'ds':
-    np.savetxt(sys.stdout, DS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
 
+#if sys.argv[1] == 'as':
+#    np.savetxt(sys.stdout, AS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
+#if sys.argv[1] == 'ds':
+#    np.savetxt(sys.stdout, DS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
 #
+

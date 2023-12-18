@@ -1,9 +1,9 @@
 import { describe } from "node:test";
-import { parseFastaFile } from "./fasta";
+import * as fastaService from "./fasta.service";
 
 describe("fasta - parseFastaFile", () => {
   it("should return multiple sequences", () => {
-    expect(parseFastaFile(fastFileMock)).toStrictEqual([
+    expect(fastaService.parseFastaFile(fastFileMock)).toStrictEqual([
       {
         sequenceName: "ExampleSeq1",
         sequence:

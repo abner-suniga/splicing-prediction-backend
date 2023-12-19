@@ -1,4 +1,4 @@
-import { jobService } from "../services";
+import { jobService, userService } from "../services";
 import { parseFastaFile } from "../services/fasta.service";
 import { catchAsync } from "../utils/catch-async";
 
@@ -11,8 +11,11 @@ export const createJob = catchAsync(async (req, res) => {
     return res.status(400).send("File, model, and email are required.");
   }
 
-  parseFastaFile(file.buffer.toString());
+  const fastaSequences = parseFastaFile(file.buffer.toString());
 
-  await jobService.createJob();
+  const user = await userService.createUser(email);
+
+  await jobService.createJob(fastaSequences, user);
+
   res.sendStatus(200);
 });

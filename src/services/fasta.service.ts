@@ -1,5 +1,10 @@
+export type FastaSequenceParsed = {
+  sequenceName: string;
+  sequence: string;
+};
+
 // This could be improved by use Node.js streams
-export function parseFastaFile(fastaString: string) {
+export const parseFastaFile = (fastaString: string): FastaSequenceParsed[] => {
   const sequences: Array<{ sequenceName: string; sequence: string }> = [];
 
   let currentSequenceName;
@@ -32,4 +37,4 @@ export function parseFastaFile(fastaString: string) {
   }
 
   return sequences;
-}
+};

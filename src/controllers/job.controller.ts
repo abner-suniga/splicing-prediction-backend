@@ -15,7 +15,7 @@ export const createJob = catchAsync(async (req, res) => {
 
   const user = await userService.createUser(email);
 
-  await jobService.createJob(fastaSequences, user);
+  await jobService.createJob(model, fastaSequences, user);
 
   res.sendStatus(200);
 });

@@ -1,6 +1,6 @@
 import numpy as np
 import db
-from models.DSSP.predict import AS_DSSP, DS_DSSP
+from ml_models.DSSP.predict import AS_DSSP, DS_DSSP
 
 
 def get_model(model_name):

@@ -2,6 +2,8 @@ import numpy as np
 import db
 from ml_models.DSSP.predict import AS_DSSP, DS_DSSP
 
+np.set_printoptions(threshold=np.inf)
+
 
 def get_model(model_name):
     match model_name:

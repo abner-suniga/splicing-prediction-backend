@@ -80,10 +80,5 @@ def transform_sequence_4_prediction(seq, flanking_length=FLANKING_LEN):
 def predict(seq_str, model=model):
     seq_np_arr = transform_sequence_4_prediction(seq_str)
     predictions_seq = model.predict(seq_np_arr)
-    print(predictions_seq)
-    print(predictions_seq.shape)
+    return predictions_seq
     # np.savetxt(sys.stdout, predictions_seq, delimiter=",", fmt="%.4f")
-
-
-predict('CTCCTCTTTGCCTTACTCCTAGCCATGGAGCTCCCATTGGTGGCAGCCAGTGCCACCATGCGCGCTCAGTGTAAGTATCATTCCCTCTCACTGTCCTGGAGAGGACGAGAATTCCACCTGGGGTGCTGGGGGTCACTGGG')
-

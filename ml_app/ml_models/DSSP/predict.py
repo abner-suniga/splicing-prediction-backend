@@ -3,20 +3,20 @@ import sys
 import numpy as np
 from keras.models import model_from_json
 
-BASE_KEY = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 4}
+BASE_KEY = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}
 
 
 def build_seq_vec(seq, window):
     half_window = (window // 2) - 1
-    padded_seq = 'N'*half_window + seq + 'N'*half_window
-    input_vec = np.zeros((len(seq)-1, window, 5))
-    print(input_vec.shape)
+    padded_seq = "N" * half_window + seq + "N" * half_window
+    input_vec = np.zeros((len(seq), window, 5))
     input_index = 0
-    for i in range(half_window, len(padded_seq)-half_window-1):
-        seq_window = padded_seq[i-half_window:i+half_window+2]
-        print(input_index)
-        print(seq_window)
-        print(seq_window[70], seq_window[71])
+    for i in range(half_window, len(padded_seq) - half_window):
+        seq_window = padded_seq[i - half_window : i + half_window + 2]
+        # print('donor', seq_window[70], seq_window[71])
+        # print('aceptor', seq_window[68], seq_window[69])
+        # print(input_index)
+        # print(seq_window)
         for j in range(len(seq_window)):
             input_vec[input_index][j][BASE_KEY[seq_window[j]]] = 1
         input_index += 1
@@ -25,8 +25,10 @@ def build_seq_vec(seq, window):
 
 def AS_DSSP(input_seq):
     input_vec = build_seq_vec(input_seq, 140)
-    model = model_from_json(open(os.path.join(os.path.dirname(__file__), 'AS_model.json')).read())
-    model.load_weights(os.path.join(os.path.dirname(__file__), 'AS_model.hdf5'))
+    model = model_from_json(
+        open(os.path.join(os.path.dirname(__file__), "AS_model.json")).read()
+    )
+    model.load_weights(os.path.join(os.path.dirname(__file__), "AS_model.hdf5"))
     predict = model.predict(input_vec, batch_size=1, verbose=0)
     return predict[:, 0]
 
@@ -34,17 +36,16 @@ def AS_DSSP(input_seq):
 def DS_DSSP(input_seq):
     input_vec = build_seq_vec(input_seq, 140)
     print(input_vec.shape)
-    model = model_from_json(open(os.path.join(os.path.dirname(__file__), 'DS_model.json')).read())
-    model.load_weights(os.path.join(os.path.dirname(__file__), 'DS_model.hdf5'))
+    model = model_from_json(
+        open(os.path.join(os.path.dirname(__file__), "DS_model.json")).read()
+    )
+    model.load_weights(os.path.join(os.path.dirname(__file__), "DS_model.hdf5"))
     predict = model.predict(input_vec, batch_size=1, verbose=0)
     return predict[:, 0]
 
 
-build_seq_vec_ds('CTCCTCTTTGCCTTACTCCTAGCCATGGAGCTCCCATTGGTGGCAGCCAGTGCCACCATGCGCGCTCAGTGTAAGTATCATTCCCTCTCACTGTCCTGGAGAGGACGAGAATTCCACCTGGGGTGCTGGGGGTCACTGGG')
-
-#if sys.argv[1] == 'as':
+# if sys.argv[1] == 'as':
 #    np.savetxt(sys.stdout, AS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
-#if sys.argv[1] == 'ds':
+# if sys.argv[1] == 'ds':
 #    np.savetxt(sys.stdout, DS_DSSP(sys.argv[2]), delimiter=',', fmt='%.4f')
 #
-

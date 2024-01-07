@@ -47,5 +47,3 @@ def update_fail_job(job_id):
         WHERE id = %s
     """
     execute_db_query(update_job_query, (job_id,))
-
-

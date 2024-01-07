@@ -24,6 +24,13 @@ export const getJobResultsById = async (id: string) => {
   });
 };
 
+type ResultTable = {
+  name: string;
+  position: number;
+  hit: string;
+  score: number;
+};
+
 type ResultSequence = {
   name: string;
   content: string;
@@ -31,12 +38,7 @@ type ResultSequence = {
 };
 
 type ResultsView = {
-  resultsTable: Array<{
-    name: string;
-    position: number;
-    hit: string;
-    score: number;
-  }>;
+  resultsTable: Array<ResultTable>;
   resultsSequence: Array<ResultSequence>;
 };
 

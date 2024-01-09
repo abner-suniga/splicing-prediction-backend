@@ -2,7 +2,7 @@ import * as fastaService from "./fasta.service";
 import * as mlService from "./ml.service";
 import prisma from "../db/prisma";
 import { isFulfilled } from "../utils/promises";
-import { JobSequenceStatus, Prisma } from "@prisma/client";
+import { JobStatus, MlJobStatus, Models, Prisma } from "@prisma/client";
 
 type User = {
   id: string;
@@ -15,7 +15,7 @@ export const getJobResultsById = async (id: string) => {
       id,
     },
     include: {
-      jobSequence: {
+      mlJobs: {
         include: {
           sequence: true,
         },
@@ -24,8 +24,9 @@ export const getJobResultsById = async (id: string) => {
   });
 };
 
-type ResultTable = {
+type ResultHit = {
   name: string;
+  type: "ACCEPTOR" | "DONOR";
   position: number;
   hit: string;
   score: number;
@@ -34,12 +35,6 @@ type ResultTable = {
 type ResultSequence = {
   name: string;
   content: string;
-  indexes: number[];
-};
-
-type ResultsView = {
-  resultsTable: Array<ResultTable>;
-  resultsSequence: Array<ResultSequence>;
 };
 
 const HIT_WINDOW = 10;
@@ -47,56 +42,148 @@ const HIT_WINDOW = 10;
 export const getJobResultsViewById = async (
   id: string,
   threshold: number = 0.9,
-): Promise<ResultsView> => {
+) => {
   const job = await getJobResultsById(id);
 
   if (!job) {
     throw new Error(`Job not found`);
   }
 
-  const resultsTable = [];
-  const resultsSequence = [];
+  const resultSequences: ResultSequence[] = [];
+  let resultHits: ResultHit[] = [];
 
-  for (const jobSequence of job.jobSequence) {
-    if (jobSequence.result) {
-      const sequence: ResultSequence = {
-        name: jobSequence.sequence.sequenceName,
-        content: jobSequence.sequence.sequence,
-        indexes: [],
-      };
-
-      const results = jobSequence.result
-        .slice(1, -1)
-        .replace(/\r?\n|\r/g, "")
-        .replace(/\s/g, "")
-        .split(",");
-
-      for (let i = 0; i < results.length; i++) {
-        const score = parseFloat(results[i]);
-        if (score > threshold) {
-          resultsTable.push({
-            name: jobSequence.sequence.sequenceName,
-            position: i + 1,
-            hit: jobSequence.sequence.sequence.slice(
-              i - HIT_WINDOW / 2 < 0 ? 0 : i - HIT_WINDOW / 2,
-              i + HIT_WINDOW / 2 > jobSequence.sequence.sequence.length
-                ? jobSequence.sequence.sequence.length
-                : i + HIT_WINDOW / 2,
-            ),
-            score,
-          });
-          sequence.indexes.push(i);
-        }
-      }
-
-      resultsSequence.push(sequence);
+  for (const mlJob of job.mlJobs) {
+    if (!mlJob.result) {
+      continue;
     }
+
+    resultSequences.push({
+      name: mlJob.sequence.name,
+      content: mlJob.sequence.content,
+    });
+
+    switch (job.model) {
+      case "DS_DSSP":
+        break;
+      case "AS_DSSP":
+        break;
+      case "DeepSplicer":
+        resultHits = [
+          ...resultHits,
+          ...parseAcceptorAndDonorResults({
+            sequenceName: mlJob.sequence.name,
+            sequenceContent: mlJob.sequence.content,
+            result: mlJob.result,
+            lineParser: lineParseDeepSplicer,
+            threshold,
+          }),
+        ];
+        break;
+      case "SpliceAI":
+        resultHits = [
+          ...resultHits,
+          ...parseAcceptorAndDonorResults({
+            sequenceName: mlJob.sequence.name,
+            sequenceContent: mlJob.sequence.content,
+            result: mlJob.result,
+            lineParser: lineParseSpliceAI,
+            threshold,
+          }),
+        ];
+        break;
+    }
+
+    console.log(resultHits);
   }
 
   return {
-    resultsTable,
-    resultsSequence,
+    jobId: job.id,
+    model: job.model,
+    resultSequences,
+    resultHits,
   };
+};
+
+type LineParseReturn = {
+  other: number;
+  acceptor: number;
+  donor: number;
+};
+
+const lineParseSpliceAI = (predictions: number[]) => {
+  return {
+    other: predictions[0],
+    acceptor: predictions[1],
+    donor: predictions[2],
+  };
+};
+
+const lineParseDeepSplicer = (predictions: number[]) => {
+  return {
+    donor: predictions[0],
+    acceptor: predictions[1],
+    other: predictions[2],
+  };
+};
+
+const parseAcceptorAndDonorResults = ({
+  sequenceName,
+  sequenceContent,
+  lineParser,
+  result,
+  threshold = 0.1,
+}: {
+  sequenceName: string;
+  sequenceContent: string;
+  lineParser: (predictions: number[]) => LineParseReturn;
+  result: string;
+  threshold?: number;
+}) => {
+  const resultHits: ResultHit[] = [];
+
+  const lines = result
+    .slice(1, result.length - 1)
+    .split("\n")
+    .map((line) => line.trim().slice(1, 24));
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const { acceptor, donor } = lineParser(line.split(",").map(parseFloat));
+
+    const startIdx = i - HIT_WINDOW / 2;
+    const endIdx = i + HIT_WINDOW / 2 + 1;
+    let hit = sequenceContent.slice(startIdx >= 0 ? startIdx : 0, endIdx);
+
+    if (startIdx < 0) {
+      hit = "N".repeat(Math.abs(startIdx)) + hit;
+    }
+
+    if (endIdx > sequenceContent.length) {
+      hit = hit + "N".repeat(endIdx - sequenceContent.length);
+    }
+
+    if (acceptor >= threshold) {
+      resultHits.push({
+        name: sequenceName,
+        type: "ACCEPTOR",
+        position: i + 1,
+        hit,
+        score: acceptor,
+      });
+    }
+
+    if (donor >= threshold) {
+      resultHits.push({
+        name: sequenceName,
+        type: "DONOR",
+        position: i + 1,
+        hit,
+        score: donor,
+      });
+    }
+  }
+
+  return resultHits;
 };
 
 export const createJob = async (
@@ -117,15 +204,18 @@ export const createJob = async (
 
   const parentJob = await prisma.job.create({
     data: {
+      model: model as Models,
+      status: JobStatus.PROCESSING,
       fastaFileId: fastaFile.id,
+      userId: user.id,
     },
   });
 
   await prisma.sequence.createMany({
-    data: fastaSequences.map(({ sequenceName, sequence }) => ({
+    data: fastaSequences.map(({ name, content }) => ({
       fastaFileId: fastaFile.id,
-      sequenceName,
-      sequence,
+      name,
+      content,
     })),
   });
 
@@ -140,7 +230,7 @@ export const createJob = async (
       const data = await mlService.requestPrediction({
         model,
         sequenceId: sequence.id,
-        sequence: sequence.sequence,
+        sequence: sequence.content,
       });
 
       return {
@@ -155,7 +245,7 @@ export const createJob = async (
     sequenceId: string;
   }): result is { jobId: string; sequenceId: string } => !!result.jobId;
 
-  const jobSequencesData: Prisma.JobSequenceCreateManyInput[] = childJobs
+  const mlJobsData: Prisma.MlJobCreateManyInput[] = childJobs
     .filter(isFulfilled)
     .map((result) => result.value)
     .filter(haveJobId)
@@ -163,11 +253,11 @@ export const createJob = async (
       id: job.jobId,
       jobId: parentJob.id,
       sequenceId: job.sequenceId,
-      status: JobSequenceStatus.PROCESSING,
+      status: MlJobStatus.PROCESSING,
     }));
 
-  await prisma.jobSequence.createMany({
-    data: jobSequencesData,
+  await prisma.mlJob.createMany({
+    data: mlJobsData,
   });
 
   return {

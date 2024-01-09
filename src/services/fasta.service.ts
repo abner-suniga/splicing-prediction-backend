@@ -1,11 +1,11 @@
 export type FastaSequenceParsed = {
-  sequenceName: string;
-  sequence: string;
+  name: string;
+  content: string;
 };
 
 // This could be improved by use Node.js streams
 export const parseFastaFile = (fastaString: string): FastaSequenceParsed[] => {
-  const sequences: Array<{ sequenceName: string; sequence: string }> = [];
+  const sequences: Array<{ name: string; content: string }> = [];
 
   let currentSequenceName;
   let currentSequence = "";
@@ -16,8 +16,8 @@ export const parseFastaFile = (fastaString: string): FastaSequenceParsed[] => {
       // end last sequence
       if (currentSequenceName) {
         sequences.push({
-          sequenceName: currentSequenceName,
-          sequence: currentSequence,
+          name: currentSequenceName,
+          content: currentSequence,
         });
       }
 
@@ -31,8 +31,8 @@ export const parseFastaFile = (fastaString: string): FastaSequenceParsed[] => {
   // last sequence
   if (currentSequenceName) {
     sequences.push({
-      sequenceName: currentSequenceName,
-      sequence: currentSequence,
+      name: currentSequenceName,
+      content: currentSequence,
     });
   }
 

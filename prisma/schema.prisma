@@ -15,6 +15,10 @@ model User {
   email String @unique
 
   fastaFile FastaFile[]
+  jobs Job[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -29,35 +33,50 @@ model FastaFile {
   sequence Sequence[]
   job      Job[]
 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   @@map("fasta_files")
 }
 
 model Job {
   id String @id @default(uuid())
+  status JobStatus
+  model Models
 
   fastaFile   FastaFile     @relation(fields: [fastaFileId], references: [id])
   fastaFileId String        @map("fasta_file_id")
-  jobSequence JobSequence[]
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @map("user_id")
+
+  mlJobs MlJob[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("jobs")
 }
 
 model Sequence {
   id           String @id @default(uuid())
-  sequenceName String
-  sequence     String
+  name String
+  content     String
 
   fastaFile   FastaFile @relation(fields: [fastaFileId], references: [id])
   fastaFileId String    @map("fasta_file_id")
 
-  jobSequence JobSequence[]
+  mlJobs MlJob[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("sequences")
 }
 
-model JobSequence {
+model MlJob {
   id     String            @id @default(uuid())
-  status JobSequenceStatus
+  status MlJobStatus 
   result String?
 
   sequence   Sequence @relation(fields: [sequenceId], references: [id])
@@ -66,11 +85,27 @@ model JobSequence {
   job   Job    @relation(fields: [jobId], references: [id])
   jobId String @map("job_id")
 
-  @@map("jobs_sequences")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ml_jobs")
 }
 
-enum JobSequenceStatus {
+enum JobStatus {
   PROCESSING
   SUCCESS
   FAIL
+}
+
+enum MlJobStatus {
+  PROCESSING
+  SUCCESS
+  FAIL
+}
+
+enum Models {
+  DS_DSSP
+  AS_DSSP
+  DeepSplicer
+  SpliceAI
 }

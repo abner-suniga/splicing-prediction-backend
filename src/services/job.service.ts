@@ -2,7 +2,7 @@ import * as fastaService from "./fasta.service";
 import * as mlService from "./ml.service";
 import prisma from "../db/prisma";
 import { isFulfilled } from "../utils/promises";
-import { JobStatus, MlJobStatus, Models, Prisma } from "@prisma/client";
+import { JobStatus, MlJob, MlJobStatus, Models, Prisma } from "@prisma/client";
 
 type User = {
   id: string;
@@ -64,8 +64,17 @@ export const getJobResultsViewById = async (
 
     switch (job.model) {
       case "DS_DSSP":
-        break;
       case "AS_DSSP":
+        resultHits = [
+          ...resultHits,
+          ...parseAcceptorAndDonorResultsDSSP({
+            sequenceName: mlJob.sequence.name,
+            sequenceContent: mlJob.sequence.content,
+            model: job.model,
+            result: mlJob.result,
+            threshold,
+          }),
+        ];
         break;
       case "DeepSplicer":
         resultHits = [
@@ -92,16 +101,49 @@ export const getJobResultsViewById = async (
         ];
         break;
     }
-
-    console.log(resultHits);
   }
+
+  const newStatus = getJobStatusFromMlJobs(job.mlJobs);
+  await prisma.job.update({
+    where: { id },
+    data: { status: newStatus },
+  });
 
   return {
     jobId: job.id,
     model: job.model,
+    status: newStatus,
     resultSequences,
     resultHits,
   };
+};
+
+const getJobStatusFromMlJobs = (mlJobs: MlJob[]) => {
+  const statusProcessing = mlJobs.some(
+    (mlJob) => mlJob.status === MlJobStatus.PROCESSING,
+  );
+  if (statusProcessing) {
+    return JobStatus.PROCESSING;
+  }
+
+  const statusPartiallyFail = mlJobs.some(
+    (mlJob) => mlJob.status === MlJobStatus.FAIL,
+  );
+  if (statusPartiallyFail) {
+    return JobStatus.FAIL;
+  }
+
+  const statusFail = mlJobs.every((mlJob) => mlJob.status === MlJobStatus.FAIL);
+  if (statusFail) {
+    return JobStatus.FAIL;
+  }
+
+  const statusSuccess = mlJobs.every(
+    (mlJob) => mlJob.status === MlJobStatus.SUCCESS,
+  );
+  if (statusSuccess) {
+    return JobStatus.SUCCESS;
+  }
 };
 
 type LineParseReturn = {
@@ -124,6 +166,57 @@ const lineParseDeepSplicer = (predictions: number[]) => {
     acceptor: predictions[1],
     other: predictions[2],
   };
+};
+
+const parseAcceptorAndDonorResultsDSSP = ({
+  sequenceName,
+  sequenceContent,
+  model,
+  result,
+  threshold = 0.1,
+}: {
+  sequenceName: string;
+  sequenceContent: string;
+  model: Models;
+  result: string;
+  threshold?: number;
+}) => {
+  const resultHits: ResultHit[] = [];
+
+  const lines = result
+    .slice(1, result.length - 1)
+    .replace(/\s/g, "")
+    .replace("\n", "")
+    .split(",");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const score = parseFloat(line);
+
+    const startIdx = i - HIT_WINDOW / 2;
+    const endIdx = i + HIT_WINDOW / 2 + 1;
+    let hit = sequenceContent.slice(startIdx >= 0 ? startIdx : 0, endIdx);
+
+    if (startIdx < 0) {
+      hit = "N".repeat(Math.abs(startIdx)) + hit;
+    }
+
+    if (endIdx > sequenceContent.length) {
+      hit = hit + "N".repeat(endIdx - sequenceContent.length);
+    }
+
+    if (score >= threshold) {
+      resultHits.push({
+        name: sequenceName,
+        type: model === "DS_DSSP" ? "DONOR" : "ACCEPTOR",
+        position: i + 1,
+        hit,
+        score,
+      });
+    }
+  }
+
+  return resultHits;
 };
 
 const parseAcceptorAndDonorResults = ({

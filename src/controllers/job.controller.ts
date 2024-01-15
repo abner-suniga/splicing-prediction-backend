@@ -1,6 +1,7 @@
 import { jobService, userService } from "../services";
 import { parseFastaFile } from "../services/fasta.service";
 import { catchAsync } from "../utils/catch-async";
+import clerkClient from "@clerk/clerk-sdk-node";
 
 export const getJobResultsById = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -23,13 +24,15 @@ export const getJobs = catchAsync(async (_, res) => {
 export const createJob = catchAsync(async (req, res) => {
   const file = req.file;
   const model = req.body.model;
-  const email = req.body.email;
 
-  if (!file || !model || !email) {
-    return res.status(400).send("File, model, and email are required.");
+  if (!file || !model) {
+    return res.status(400).send("File and model are required.");
   }
 
   const fastaSequences = parseFastaFile(file.buffer.toString());
+
+  const userAuth = await clerkClient.users.getUser((req as any).auth.userId);
+  const email = userAuth.emailAddresses[0].emailAddress;
 
   const user = await userService.createUser(email);
 

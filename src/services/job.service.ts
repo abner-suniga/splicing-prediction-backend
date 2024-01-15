@@ -24,6 +24,10 @@ export const getJobResultsById = async (id: string) => {
   });
 };
 
+export const getJobs = async () => {
+  return prisma.job.findMany({});
+};
+
 type ResultHit = {
   name: string;
   type: "ACCEPTOR" | "DONOR";

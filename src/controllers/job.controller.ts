@@ -14,6 +14,12 @@ export const getJobResultsById = catchAsync(async (req, res) => {
   res.status(200).send(job);
 });
 
+export const getJobs = catchAsync(async (_, res) => {
+  const jobs = await jobService.getJobs();
+
+  res.status(200).send(jobs);
+});
+
 export const createJob = catchAsync(async (req, res) => {
   const file = req.file;
   const model = req.body.model;

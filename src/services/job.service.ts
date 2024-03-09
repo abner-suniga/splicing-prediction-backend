@@ -24,8 +24,8 @@ export const getJobResultsById = async (id: string) => {
   });
 };
 
-export const getJobs = async () => {
-  return prisma.job.findMany({});
+export const getJobs = async (userId: string) => {
+  return prisma.job.findMany({ where: { userId } });
 };
 
 type ResultHit = {

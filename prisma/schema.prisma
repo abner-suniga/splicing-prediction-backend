@@ -13,6 +13,7 @@ datasource db {
 model User {
   id    String @id @default(uuid())
   email String @unique
+  clerkId String @unique
 
   fastaFile FastaFile[]
   jobs Job[]
